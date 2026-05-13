@@ -6,17 +6,21 @@ from sys import exit
 def load_config_file():
     import json
     with open('config.json', 'r') as config_file:
-        try:
+        # try:
             config = json.load(config_file)
+            if not config["local_ipv6"]:
+                config["local_ipv6"] = False
             return (
                 config["caddy_api_url"],
                 config["mikrotik_url"],
                 config["mikrotik_username"],
-                config["mikrotik_password"]
+                config["mikrotik_password"],
+                config['local_ipv4'],
+                config['local_ipv6']
             )
-        except:
-            print("Something went wrong with the config file, exiting")
-            exit()
+        # except:
+        #     print("Something went wrong with the config file, exiting")
+        #     exit()
 
 def prompt(q, sensitive=False):
     q = f"{q}: "
@@ -34,10 +38,12 @@ def parse_args_or_input():
     parser.add_argument("-m", "--mikrotik-url", help="Mikrotik router's URL")
     parser.add_argument("-u", "--mikrotik-user", help="Username for Mikrotik router")
     parser.add_argument("-p", "--mikrotik-pass", help="Username for Mikrotik router. Leave blank to use interactive shell to enter the password without printing in the shell")
+    parser.add_argument("-i", "--ipv4", help="Enter the ipv4 address for localhost and 127.0.0.1")
+    parser.add_argument("-I", "--ipv6", help="Enter the ipv6 address for localhost.")
     args = parser.parse_args()
 
     if args.load_config:
-        caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass = load_config_file()
+        caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass, ipv4, ipv6 = load_config_file()
     
     else:
         if args.caddy_url:
@@ -56,9 +62,18 @@ def parse_args_or_input():
             mikrotik_pass = args.mikrotik_pass
         else:
             mikrotik_pass = prompt("Enter the password for Mikrotik router", sensitive=True)
-    
-    return caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass
+        if args.ipv4:
+            ipv4 = args.ipv4
+        else:
+            ipv4 = prompt("Enter the IPv4 address of the server (where DNS should point to)")
+        if args.ipv6:
+            ipv6 = args.ipv6
+        else:
+            ipv6 = prompt("Enter the IPv4 address of the server (where DNS should point to for localhost.\nEnter blank to skip")
+        if not ipv6 or ipv6 == 'blank':
+            ipv6 = False
 
+    return caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass, ipv4, ipv6
 
 
 def get_caddy_entries(url):
@@ -68,7 +83,18 @@ def get_caddy_entries(url):
     r = requests.get(url)
     if r.status_code == 200:
         data = r.json()
-        print(data)
+        caddy_entries = []
+        for item in data:
+            try:
+                ip = item['handle'][0]['routes'][0]['handle'][0]['upstreams'][0]['dial']
+                ip = ip.split(':')[0]
+                domain = item['match'][0]['host'][0]
+
+                print(f"Found {domain}  ---->  {ip}")
+                caddy_entries.append((domain, ip))
+            except:
+                print(f"Skipping! Could not extract data for {item}")
+        return caddy_entries
     else:
         print(f"Failed to get Caddy entries. Status code: {r.status_code}\nResponse: {r.text}")
         exit()
@@ -77,11 +103,8 @@ def get_caddy_entries(url):
 
 
 if __name__ == '__main__':
-    caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass = parse_args_or_input()
+    caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass, ipv4, ipv6 = parse_args_or_input()
 
-    get_caddy_entries(caddy_url)
-
-
-
-
+    caddy_entries = get_caddy_entries(caddy_url)
+    print(caddy_entries)
 

@@ -1,6 +1,8 @@
 {
-    "CADDY_API_URL": "localhost:2019",
-    "MIKROTIK_URL": "192.168.1.1",
-    "MIKROTIK_USERNAME": "user",
-    "MIKROTIK_PASSWORD": "supersecret"
+    "caddy_api_url": "localhost:2019",
+    "mikrotik_url": "192.168.1.1",
+    "mikrotik_username": "user",
+    "mikrotik_password": "supersecret",
+    "local_ipv4": "192.168.1.2",
+    "local_ipv6": "::"
 }
