@@ -1,0 +1,6 @@
+{
+    "CADDY_API_URL": "localhost:2019",
+    "MIKROTIK_URL": "192.168.1.1",
+    "MIKROTIK_USERNAME": "user",
+    "MIKROTIK_PASSWORD": "supersecret"
+}
