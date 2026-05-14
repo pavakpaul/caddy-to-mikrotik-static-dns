@@ -14,7 +14,7 @@ You need the following in order to run the script successfully:
 
 1. Caddy API URL. This is typically `localhost:2019`.
 2. Mikrotik router access:
-   1. Router URL (eg `192.168.1.1)
+   1. Router URL (eg `192.168.1.1`)
    2. An user with write access. You'll need the username and password of the user
 
 ## Running the script
