@@ -1,10 +1,10 @@
 import os
 import argparse
+import json
 import requests
 from sys import exit
 
 def load_config_file():
-    import json
     with open('config.json', 'r') as config_file:
         # try:
             config = json.load(config_file)
@@ -99,12 +99,67 @@ def get_caddy_entries(url):
         print(f"Failed to get Caddy entries. Status code: {r.status_code}\nResponse: {r.text}")
         exit()
 
+def get_mikrotik_records(url, user, passwd):
+    url = url + '/rest/ip/dns/static/print'
+    r = requests.post(url, auth=(user, passwd))
+    if r.status_code == 200:
+        data = r.json()
+        records = []
+        for record in data:
+            domain = record['name']
+            ip = record['address']
+            dtype = record['type']
+            records.append(
+                {'name': domain, 'address': ip, 'type': dtype}
+            )
+        return records
+    else:
+        print(f"Failed to get static DNS records. Status code: {r.status_code}\nResponse: {r.text}")
+        exit()
 
-
+def add_mikrotik_record(url, user, passwd, record):
+    url = url + '/rest/ip/dns/static/add'
+    r = requests.post(url, auth=(user, passwd), data=json.dumps(record))
+    if r.status_code == 200:
+        return True
+    else:
+        print(f"Failed to add static DNS record. Status code: {r.status_code}\nResponse: {r.text}")
+        exit()
 
 if __name__ == '__main__':
     caddy_url, mikrotik_url, mikrotik_user, mikrotik_pass, ipv4, ipv6 = parse_args_or_input()
-
+    print('Connecting to Caddy API to fetch hosted domains...')
     caddy_entries = get_caddy_entries(caddy_url)
-    print(caddy_entries)
+    existing_names = []
+    existing_records = get_mikrotik_records(mikrotik_url, mikrotik_user, mikrotik_pass)
 
+    for record in existing_records:
+        existing_names.append(record['name'])
+    print(existing_names)
+
+    for entry in caddy_entries:
+        name = entry[0]
+        if name in existing_names:
+            print(f"{name} already exists in the DNS Records")
+            continue
+        address = entry[1]
+        
+        if address == '127.0.0.1' or address == 'localhost':
+            add_mikrotik_record(mikrotik_url, mikrotik_user, mikrotik_pass, {
+                'name': name,
+                'address': ipv4,
+                'type': 'A'
+            })
+            if ipv6:
+                add_mikrotik_record(mikrotik_url, mikrotik_user, mikrotik_pass, {
+                    'name': name,
+                    'address': ipv6,
+                    'type': 'AAAA'
+            })
+            print(f'Added {name}')
+        else:
+            add_mikrotik_record(mikrotik_url, mikrotik_user, mikrotik_pass, {
+                'name': name,
+                'address': address,
+                'type': 'A'
+            })
